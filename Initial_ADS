@@ -1,0 +1,53 @@
+# Goal
+Detect a common persistence technique utilized by threat actors.
+
+#Categorization 
+Enterprise Technique T1053 (Scheduled Task/Job) is classified as a tactic for [Execution, Persistence, and Privilege Escalation](https://attack.mitre.org/techniques/T1053/).
+
+# Strategy Abstract
+The strategy will function as follows:
+
+	* Collect scheduled tasks from windows hosts  (Event ID 4698 (scheduled task created) through Event ID 4702 (scheduled task updated)) from Windows Security Logs.
+	* Evaluate tasks against critera based upon reported threat ttps.
+	* Alert on tasks which contain powershell scripts.
+	
+	* Sample Splunk Query:
+	```
+	(source="*WinEventLog:Security" EventCode IN (4698, 4699, 4700, 4701, 4702)) | where(JobContent LIKE '%rundll32 powershdll.dll,main%' OR JobContent LIKE '%regsvcs powershdll.dll%' OR JobContent LIKE '%regasm /U powershdll.dll%' OR JobContent LIKE '%regsvr32 /s powershdll.dll%')
+	```
+	
+# Technical Context
+The using of scheduled tasts to establish and maintain persistence on an Endpoint is a TTP that is commonly used by the full gamit of threat actors from common ransomaware gangs to Nation state supported APT Groups.
+
+|Event Code|Decription|
+|----------|----------|
+4698|A scheduled task was created.|
+4699|A scheduled task was deleted.|
+4700|A scheduled task was enabled.|
+4701|A scheduled task was disabled.|
+4702|A scheduled task was updated.|
+
+# Blind Spots and Assumptions
+*Threat groups rotate TTPs on a regular basic.
+*This ADS is focused on [sub-technique 5](https://attack.mitre.org/techniques/T1053/005/).
+*This will also only grant visibilty if the creation/modification of the scheduled task is logged and forwarded. 
+*Adversaries may also create "hidden" scheduled tasks (i.e. Hide Artifacts) that may not be visible to defender tools and manual queries used to enumerate tasks. Specifically, an adversary may hide a task from schtasks /query and the Task Scheduler by deleting the associated Security Descriptor (SD) registry value (where deletion of this value must be completed using SYSTEM permissions). Adversaries may also employ alternate methods to hide tasks, such as altering the metadata (e.g., Index value) within associated registry keys.
+
+# False Positives
+Legitimate use of scheduled task to run maintence scripts is possible but uncommon.
+
+#Validation
+Create a scheduled task on an Endpoint or Server which runs a powershell command using the TTPs contained in the Additional Resources section.
+This blog page details the steps on multiple versions of Windows:
+https://o365reports.com/2019/08/02/schedule-powershell-script-task-scheduler/
+
+# Priority
+Medium on Endpoint. 
+High on Server.
+
+# Response
+In the event that the alert fires the host should be the subject of an incident response investigation. The User account associated with the scheduled task should be monitored for signs of compromise.
+
+# Additional Resources
+GitHub discussion of the TTPs included in this ADS.
+https://github.com/p3nt4/PowerShdll
